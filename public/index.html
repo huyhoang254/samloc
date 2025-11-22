@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sâm Lốc - Online Card Game</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="login-screen" class="screen active">
+        <div class="container">
+            <h1>🎴 Sâm Lốc Online</h1>
+            <div class="card">
+                <h2>Chào mừng!</h2>
+                <div class="form-group">
+                    <label for="player-name">Tên người chơi:</label>
+                    <input type="text" id="player-name" placeholder="Nhập tên của bạn" maxlength="20" autofocus>
+                </div>
+                <button id="btn-connect" class="btn btn-primary">Vào game</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lobby Screen -->
+    <div id="lobby-screen" class="screen">
+        <div class="container">
+            <div class="header">
+                <h1>🎴 Sâm Lốc</h1>
+                <div class="player-info">
+                    <span id="player-info-name"></span>
+                    <span id="player-info-score" class="score"></span>
+                </div>
+            </div>
+
+            <div class="lobby-content">
+                <!-- Create Room Panel -->
+                <div class="panel">
+                    <h2>Tạo phòng mới</h2>
+                    <div class="form-group">
+                        <label>Tên phòng:</label>
+                        <input type="text" id="room-name" placeholder="Phòng của tôi">
+                    </div>
+                    <div class="form-group">
+                        <label>Loại phòng:</label>
+                        <select id="room-type">
+                            <option value="public">Công khai</option>
+                            <option value="private">Riêng tư</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="password-group" style="display: none;">
+                        <label>Mật khẩu:</label>
+                        <input type="password" id="room-password" placeholder="Nhập mật khẩu">
+                    </div>
+                    <div class="form-group">
+                        <label>Số người chơi:</label>
+                        <select id="max-players">
+                            <option value="2">2 người</option>
+                            <option value="3">3 người</option>
+                            <option value="4" selected>4 người</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Cược (điểm):</label>
+                        <input type="number" id="bet-amount" value="0" min="0" step="100">
+                    </div>
+                    <button id="btn-create-room" class="btn btn-primary">Tạo phòng</button>
+                </div>
+
+                <!-- Available Rooms -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h2>Phòng có sẵn</h2>
+                        <button id="btn-refresh-rooms" class="btn btn-small">🔄 Làm mới</button>
+                    </div>
+                    <div id="rooms-list" class="rooms-list">
+                        <p class="text-muted">Đang tải danh sách phòng...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Room Screen -->
+    <div id="room-screen" class="screen">
+        <div class="container">
+            <div class="header">
+                <div>
+                    <h2 id="room-title">Phòng</h2>
+                    <p id="room-id" class="text-muted"></p>
+                </div>
+                <button id="btn-leave-room" class="btn btn-secondary">Rời phòng</button>
+            </div>
+
+            <div class="room-content">
+                <!-- Players in Room -->
+                <div class="panel">
+                    <h3>Người chơi (<span id="player-count">0</span>/<span id="max-player-count">4</span>)</h3>
+                    <div id="room-players-list" class="players-list"></div>
+                    <div style="display: flex; gap: 10px; margin-top: 15px;">
+                        <button id="btn-add-bot" class="btn btn-secondary" style="display: none;">🤖 Thêm Bot</button>
+                        <button id="btn-start-game" class="btn btn-primary" style="display: none;">Bắt đầu</button>
+                    </div>
+                </div>
+
+                <!-- Chat -->
+                <div class="panel">
+                    <h3>Chat</h3>
+                    <div id="chat-messages" class="chat-messages"></div>
+                    <div class="chat-input-group">
+                        <input type="text" id="chat-input" placeholder="Nhập tin nhắn...">
+                        <button id="btn-send-chat" class="btn btn-small">Gửi</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Screen -->
+    <div id="game-screen" class="screen">
+        <div class="game-container">
+            <!-- Game Info -->
+            <div class="game-info">
+                <div class="info-item">
+                    <span>Phòng: <strong id="game-room-id"></strong></span>
+                </div>
+                <div class="info-item">
+                    <span id="current-turn-info">Đang chờ...</span>
+                </div>
+                <div class="info-item">
+                    <span id="sam-declarer-info"></span>
+                </div>
+            </div>
+
+            <!-- Game Table -->
+            <div class="game-table">
+                <!-- Other Players -->
+                <div class="other-players">
+                    <div id="player-slot-1" class="player-slot"></div>
+                    <div id="player-slot-2" class="player-slot"></div>
+                    <div id="player-slot-3" class="player-slot"></div>
+                </div>
+
+                <!-- Play Area (Center of table) -->
+                <div class="play-area">
+                    <div class="last-played">
+                        <div id="last-played-cards" class="cards-display"></div>
+                        <p id="last-played-info" style="color: white; text-shadow: 1px 1px 2px #000;"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="action-buttons">
+                <button id="btn-play-cards" class="btn btn-primary" disabled>Đánh bài</button>
+                <button id="btn-pass" class="btn btn-secondary" disabled>Bỏ lượt</button>
+                <button id="btn-declare-sam" class="btn btn-warning" style="display: none;">Báo Sâm</button>
+                <button id="btn-declare-one" class="btn btn-warning" style="display: none;">Báo 1</button>
+            </div>
+
+            <!-- History -->
+            <div class="game-history">
+                <h4>Lịch sử đánh bài</h4>
+                <div id="history-list" class="history-list"></div>
+            </div>
+
+            <!-- Player's Hand -->
+            <div class="player-hand">
+                <h3>Bài của bạn (<span id="hand-count">0</span> lá)</h3>
+                <div id="player-cards" class="cards-hand"></div>
+            </div>
+
+            <!-- Chat in Game -->
+            <div class="game-chat">
+                <div id="game-chat-messages" class="chat-messages"></div>
+                <div class="chat-input-group">
+                    <input type="text" id="game-chat-input" placeholder="Chat...">
+                    <button id="btn-game-send-chat" class="btn btn-small">📤</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game End Modal -->
+    <div id="game-end-modal" class="modal">
+        <div class="modal-content">
+            <h2 id="game-end-title">Kết thúc ván</h2>
+            <div id="game-end-info"></div>
+            <div id="scores-table"></div>
+            <div class="modal-actions">
+                <button id="btn-play-again" class="btn btn-primary">Chơi lại</button>
+                <button id="btn-back-to-lobby" class="btn btn-secondary">Về sảnh</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading" class="loading" style="display: none;">
+        <div class="spinner"></div>
+        <p>Đang kết nối...</p>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/js/socket.js"></script>
+    <script src="/js/game.js"></script>
+    <script src="/js/app.js"></script>
+</body>
+</html>
