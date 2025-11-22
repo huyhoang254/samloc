@@ -39,15 +39,15 @@ io.on('connection', (socket) => {
   socket.on('player-connect', (data) => {
     try {
       const player = playerManager.addPlayer(socket.id, data);
-      
+
       socket.emit('player-connected', {
         success: true,
         player: playerManager.getPlayerInfo(player.id)
       });
 
-      // Send list of public rooms
+      // Gửi danh sách tất cả phòng (cả công khai và riêng tư)
       socket.emit('rooms-list', {
-        rooms: roomManager.getPublicRooms()
+        rooms: roomManager.getAllRooms()
       });
 
       console.log(`Player connected: ${player.name} (${player.id})`);
@@ -62,16 +62,16 @@ io.on('connection', (socket) => {
   socket.on('create-room', (data) => {
     try {
       const player = playerManager.getPlayer(socket.id);
-      
+
       if (!player) {
         socket.emit('error', { message: 'Player not found' });
         return;
       }
 
       const room = roomManager.createRoom(player, data);
-      
+
       socket.join(room.id);
-      
+
       socket.emit('room-created', {
         success: true,
         room: {
@@ -88,7 +88,7 @@ io.on('connection', (socket) => {
       // Broadcast to all that a new room is available
       if (room.type === 'public') {
         io.emit('rooms-list', {
-          rooms: roomManager.getPublicRooms()
+          rooms: roomManager.getAllRooms()
         });
       }
 
@@ -104,21 +104,21 @@ io.on('connection', (socket) => {
   socket.on('join-room', (data) => {
     try {
       const player = playerManager.getPlayer(socket.id);
-      
+
       if (!player) {
         socket.emit('error', { message: 'Player not found' });
         return;
       }
 
       const result = roomManager.joinRoom(data.roomId, player, data.password);
-      
+
       if (!result.success) {
         socket.emit('error', { message: result.error });
         return;
       }
 
       socket.join(data.roomId);
-      
+
       socket.emit('room-joined', {
         success: true,
         room: {
@@ -140,7 +140,7 @@ io.on('connection', (socket) => {
 
       // Update rooms list
       io.emit('rooms-list', {
-        rooms: roomManager.getPublicRooms()
+        rooms: roomManager.getAllRooms()
       });
 
       console.log(`${player.name} joined room ${data.roomId}`);
@@ -155,7 +155,7 @@ io.on('connection', (socket) => {
   socket.on('add-bot', (data) => {
     try {
       const room = roomManager.getRoom(data.roomId);
-      
+
       if (!room) {
         socket.emit('error', { message: 'Room not found' });
         return;
@@ -170,12 +170,13 @@ io.on('connection', (socket) => {
       const botId = `bot-${Date.now()}`;
       const botNames = ['Bot Cao Thủ', 'Bot Siêu Việt', 'Bot Phàm Nhân', 'Bot Thiên Tài'];
       const botName = botNames[room.players.length % botNames.length];
-      
+
       const botPlayer = {
         id: botId,
         socketId: null,
         name: botName,
-        isBot: true
+        isBot: true,
+        coins: 5000
       };
 
       room.players.push(botPlayer);
@@ -202,14 +203,14 @@ io.on('connection', (socket) => {
   socket.on('leave-room', (data) => {
     try {
       const player = playerManager.getPlayer(socket.id);
-      
+
       if (!player) return;
 
       const result = roomManager.leaveRoom(data.roomId, player.id);
-      
+
       if (result.success) {
         socket.leave(data.roomId);
-        
+
         socket.emit('room-left', { success: true });
 
         if (!result.roomDeleted) {
@@ -224,7 +225,7 @@ io.on('connection', (socket) => {
 
         // Update rooms list
         io.emit('rooms-list', {
-          rooms: roomManager.getPublicRooms()
+          rooms: roomManager.getAllRooms()
         });
 
         console.log(`${player.name} left room ${data.roomId}`);
@@ -241,7 +242,7 @@ io.on('connection', (socket) => {
     try {
       const player = playerManager.getPlayer(socket.id);
       const result = roomManager.startGame(data.roomId, player.id);
-      
+
       if (!result.success) {
         socket.emit('error', { message: result.error });
         return;
@@ -296,14 +297,14 @@ io.on('connection', (socket) => {
     try {
       const player = playerManager.getPlayer(socket.id);
       const room = roomManager.getRoom(data.roomId);
-      
+
       if (!room || !room.game) {
         socket.emit('error', { message: 'Game not found' });
         return;
       }
 
       const result = room.game.declareSam(player.id);
-      
+
       if (result.success) {
         io.to(data.roomId).emit('sam-declared', {
           declarer: result.declarer,
@@ -311,7 +312,7 @@ io.on('connection', (socket) => {
         });
 
         // Send current game state
-        io.to(data.roomId).emit('game-state-update', 
+        io.to(data.roomId).emit('game-state-update',
           room.game.getPublicState()
         );
       } else {
@@ -328,15 +329,15 @@ io.on('connection', (socket) => {
   socket.on('skip-sam', (data) => {
     try {
       const room = roomManager.getRoom(data.roomId);
-      
+
       if (!room || !room.game) {
         socket.emit('error', { message: 'Game not found' });
         return;
       }
 
       room.game.skipSamDeclaration();
-      
-      io.to(data.roomId).emit('game-state-update', 
+
+      io.to(data.roomId).emit('game-state-update',
         room.game.getPublicState()
       );
     } catch (error) {
@@ -351,7 +352,7 @@ io.on('connection', (socket) => {
     try {
       const player = playerManager.getPlayer(socket.id);
       const room = roomManager.getRoom(data.roomId);
-      
+
       if (!room || !room.game) {
         socket.emit('error', { message: 'Game not found' });
         return;
@@ -359,9 +360,9 @@ io.on('connection', (socket) => {
 
       // Convert card data to Card objects
       const cards = data.cards.map(c => new Card(c.rank, c.suit));
-      
+
       const result = room.game.playCards(player.id, cards);
-      
+
       if (!result.success) {
         socket.emit('error', { message: result.error });
         return;
@@ -398,6 +399,7 @@ io.on('connection', (socket) => {
           winner: result.winner,
           winnerName: result.winnerName,
           scores: result.scores,
+          coins: require('./game/ScoreCalculator').calculateEndGameCoins(room.game.players, result.winner, room.game.options.betAmount),
           samDeclarer: result.samDeclarer,
           finalHands: result.finalHands
         });
@@ -407,7 +409,7 @@ io.on('connection', (socket) => {
         room.game = null;
       } else {
         // Send updated game state
-        io.to(data.roomId).emit('game-state-update', 
+        io.to(data.roomId).emit('game-state-update',
           room.game.getPublicState()
         );
 
@@ -428,14 +430,14 @@ io.on('connection', (socket) => {
     try {
       const player = playerManager.getPlayer(socket.id);
       const room = roomManager.getRoom(data.roomId);
-      
+
       if (!room || !room.game) {
         socket.emit('error', { message: 'Game not found' });
         return;
       }
 
       const result = room.game.passTurn(player.id);
-      
+
       if (!result.success) {
         socket.emit('error', { message: result.error });
         return;
@@ -449,7 +451,7 @@ io.on('connection', (socket) => {
         roundWinnerName: result.roundWinnerName
       });
 
-      io.to(data.roomId).emit('game-state-update', 
+      io.to(data.roomId).emit('game-state-update',
         room.game.getPublicState()
       );
 
@@ -469,14 +471,14 @@ io.on('connection', (socket) => {
     try {
       const player = playerManager.getPlayer(socket.id);
       const room = roomManager.getRoom(data.roomId);
-      
+
       if (!room || !room.game) {
         socket.emit('error', { message: 'Game not found' });
         return;
       }
 
       const result = room.game.declareOne(player.id);
-      
+
       if (result.success) {
         io.to(data.roomId).emit('one-declared', {
           playerId: result.playerId,
@@ -490,32 +492,14 @@ io.on('connection', (socket) => {
     }
   });
 
-  /**
-   * Chat message
-   */
-  socket.on('chat-message', (data) => {
-    try {
-      const player = playerManager.getPlayer(socket.id);
-      
-      if (!player) return;
 
-      io.to(data.roomId).emit('chat-message', {
-        playerId: player.id,
-        playerName: player.name,
-        message: data.message,
-        timestamp: Date.now()
-      });
-    } catch (error) {
-      console.error('Chat error:', error);
-    }
-  });
 
   /**
    * Get rooms list
    */
   socket.on('get-rooms', () => {
     socket.emit('rooms-list', {
-      rooms: roomManager.getPublicRooms()
+      rooms: roomManager.getAllRooms()
     });
   });
 
@@ -524,19 +508,19 @@ io.on('connection', (socket) => {
    */
   socket.on('disconnect', () => {
     const player = playerManager.getPlayer(socket.id);
-    
+
     if (player) {
       console.log(`Player disconnected: ${player.name}`);
-      
+
       // Remove from all rooms
       roomManager.removePlayerFromAllRooms(player.id);
-      
+
       // Remove player
       playerManager.removePlayer(socket.id);
 
       // Update rooms list
       io.emit('rooms-list', {
-        rooms: roomManager.getPublicRooms()
+        rooms: roomManager.getAllRooms()
       });
     }
   });
@@ -567,7 +551,7 @@ function processBotTurn(roomId) {
     // Handle Sam declaration phase
     if (room.game.state === 'declaring_sam') {
       const shouldDeclare = bot.shouldDeclareSam(currentPlayer.hand);
-      
+
       if (shouldDeclare) {
         const result = room.game.declareSam(currentPlayer.id);
         if (result.success) {
@@ -577,18 +561,18 @@ function processBotTurn(roomId) {
           });
         }
       }
-      
+
       // Skip sam after delay
       setTimeout(() => {
         if (room.game && room.game.state === 'declaring_sam') {
           room.game.skipSamDeclaration();
           io.to(roomId).emit('game-state-update', room.game.getPublicState());
-          
+
           // Continue with first turn
           setTimeout(() => processBotTurn(roomId), 1000);
         }
       }, 2000);
-      
+
       return;
     }
 
@@ -599,7 +583,7 @@ function processBotTurn(roomId) {
     if (shouldPass && !isFirstMove) {
       // Pass turn
       const result = room.game.passTurn(currentPlayer.id);
-      
+
       if (result.success) {
         io.to(roomId).emit('turn-passed', {
           playerId: currentPlayer.id,
@@ -624,7 +608,7 @@ function processBotTurn(roomId) {
 
       if (cardsToPlay) {
         const result = room.game.playCards(currentPlayer.id, cardsToPlay);
-        
+
         if (result.success) {
           // Broadcast the play
           io.to(roomId).emit('cards-played', {
@@ -659,7 +643,7 @@ function processBotTurn(roomId) {
             room.game = null;
           } else {
             io.to(roomId).emit('game-state-update', room.game.getPublicState());
-            
+
             // Next turn
             setTimeout(() => processBotTurn(roomId), 1500);
           }
@@ -667,7 +651,7 @@ function processBotTurn(roomId) {
       } else if (!isFirstMove) {
         // Can't play, must pass
         const result = room.game.passTurn(currentPlayer.id);
-        
+
         if (result.success) {
           io.to(roomId).emit('turn-passed', {
             playerId: currentPlayer.id,

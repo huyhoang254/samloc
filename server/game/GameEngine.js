@@ -1,11 +1,11 @@
 const Deck = require('./Deck');
 const Validator = require('./Validator');
 const ScoreCalculator = require('./ScoreCalculator');
-const { 
-  GAME_STATES, 
+const {
+  GAME_STATES,
   CARDS_PER_PLAYER,
   PLAYER_STATES,
-  TURN_TIMEOUT 
+  TURN_TIMEOUT
 } = require('../utils/constants');
 
 /**
@@ -23,7 +23,7 @@ class GameEngine {
     this.lastComboPlayer = null;
     this.samDeclarer = null; // Player who declared Sam
     this.winner = null;
-    this.turnHistory = []; // History of all plays
+    this.winner = null;
     this.passCount = 0; // Count of consecutive passes
     this.options = {
       betAmount: options.betAmount || 0,
@@ -53,7 +53,7 @@ class GameEngine {
   startGame() {
     this.state = GAME_STATES.DECLARING_SAM;
     this.dealCards();
-    
+
     // Check for auto-win conditions
     for (const playerId in this.players) {
       const player = this.players[playerId];
@@ -82,7 +82,7 @@ class GameEngine {
    */
   dealCards() {
     const hands = this.deck.deal(this.playerOrder.length, CARDS_PER_PLAYER);
-    
+
     this.playerOrder.forEach((playerId, index) => {
       this.players[playerId].hand = hands[index];
       this.players[playerId].state = PLAYER_STATES.PLAYING;
@@ -182,14 +182,10 @@ class GameEngine {
     this.lastComboPlayer = playerId;
     this.passCount = 0;
 
-    // Add to history
-    this.turnHistory.push({
-      playerId,
-      playerName: player.name,
-      combo,
-      cards,
-      timestamp: Date.now()
-    });
+    // Update game state
+    this.currentCombo = combo;
+    this.lastComboPlayer = playerId;
+    this.passCount = 0;
 
     // Check if player won
     if (player.hand.length === 0) {
@@ -234,20 +230,14 @@ class GameEngine {
 
     this.passCount++;
 
-    // Add to history
-    this.turnHistory.push({
-      playerId,
-      playerName: this.players[playerId].name,
-      action: 'pass',
-      timestamp: Date.now()
-    });
+    this.passCount++;
 
     // If all other players passed, current combo player wins the round
     if (this.passCount >= this.playerOrder.length - 1) {
       this.currentCombo = null;
       this.passCount = 0;
       this.currentPlayerIndex = this.playerOrder.indexOf(this.lastComboPlayer);
-      
+
       return {
         success: true,
         roundWinner: this.lastComboPlayer,
@@ -271,7 +261,7 @@ class GameEngine {
    */
   declareOne(playerId) {
     const player = this.players[playerId];
-    
+
     if (!player) {
       return { success: false, error: 'Player not found' };
     }
@@ -295,11 +285,52 @@ class GameEngine {
   endGame(winnerId) {
     this.state = GAME_STATES.ENDED;
     this.winner = winnerId;
+    const bet = this.options.betAmount || 1;
+    const ScoreCalculator = require('./ScoreCalculator');
+    let scores, coinsResult;
 
-    // Calculate scores
-    const scores = this.options.betAmount > 0
-      ? ScoreCalculator.calculateBetScores(this, this.options.betAmount)
-      : ScoreCalculator.calculateScores(this);
+    // Ăn trắng
+    const autoWin = Object.values(this.players).find(p => p.autoWin);
+    if (autoWin) {
+      scores = ScoreCalculator.calculateScores(this);
+      coinsResult = ScoreCalculator.handleAutoWinCoins(this.players, winnerId, bet);
+    }
+    // Báo Sâm thành công
+    else if (this.samDeclarer && winnerId === this.samDeclarer) {
+      scores = ScoreCalculator.calculateScores(this);
+      coinsResult = ScoreCalculator.handleSamSuccessCoins(this.players, this.samDeclarer, bet);
+    }
+    // Báo Sâm thất bại
+    else if (this.samDeclarer && winnerId !== this.samDeclarer) {
+      scores = ScoreCalculator.calculateScores(this);
+      coinsResult = ScoreCalculator.handleSamFailCoins(this.players, this.samDeclarer, bet);
+    }
+    // Trường hợp thường
+    else {
+      scores = ScoreCalculator.calculateScores(this);
+      coinsResult = ScoreCalculator.calculateEndGameCoins(this.players, winnerId, bet);
+    }
+
+    // Phạt đặc biệt: thối 2, thối tứ quý, cóng
+    // (giả sử có flags: player.thoi2, player.thoiTuQuy, player.cong)
+    Object.values(this.players).forEach(player => {
+      if (player.thoi2) {
+        coinsResult.find(r => r.playerId === player.id).coinsChange += ScoreCalculator.penaltyThoi2Coins(player, bet);
+      }
+      if (player.thoiTuQuy) {
+        coinsResult.find(r => r.playerId === player.id).coinsChange += ScoreCalculator.penaltyThoiTuQuyCoins(player, bet);
+      }
+      if (player.cong) {
+        coinsResult.find(r => r.playerId === player.id).coinsChange += ScoreCalculator.penaltyCongCoins(player, bet);
+      }
+      // Chống âm tiền
+      if (player.coins + coinsResult.find(r => r.playerId === player.id).coinsChange < 0) {
+        coinsResult.find(r => r.playerId === player.id).newBalance = 0;
+      } else {
+        coinsResult.find(r => r.playerId === player.id).newBalance = player.coins + coinsResult.find(r => r.playerId === player.id).coinsChange;
+      }
+      player.coins = coinsResult.find(r => r.playerId === player.id).newBalance;
+    });
 
     // Update player total scores
     for (const playerId in scores) {
@@ -312,6 +343,7 @@ class GameEngine {
       winner: winnerId,
       winnerName: this.players[winnerId].name,
       scores,
+      coins: coinsResult,
       samDeclarer: this.samDeclarer,
       finalHands: this.getPlayerHands()
     };
@@ -362,7 +394,7 @@ class GameEngine {
    */
   getPublicState() {
     const publicPlayers = {};
-    
+
     for (const playerId in this.players) {
       const player = this.players[playerId];
       publicPlayers[playerId] = {
@@ -384,7 +416,6 @@ class GameEngine {
       currentCombo: this.currentCombo,
       lastComboPlayer: this.lastComboPlayer,
       samDeclarer: this.samDeclarer,
-      turnHistory: this.turnHistory.slice(-10), // Last 10 moves
       winner: this.winner
     };
   }

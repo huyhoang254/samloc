@@ -16,6 +16,7 @@ class PlayerManager {
       socketId: socketId,
       name: playerData.name,
       totalScore: 0,
+      coins: 5000,
       gamesPlayed: 0,
       gamesWon: 0,
       connectedAt: Date.now(),

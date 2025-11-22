@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
+
     <!-- Login Screen -->
     <div id="login-screen" class="screen active">
         <div class="container">
@@ -18,6 +19,61 @@
                     <input type="text" id="player-name" placeholder="Nhập tên của bạn" maxlength="20" autofocus>
                 </div>
                 <button id="btn-connect" class="btn btn-primary">Vào game</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lobby Popup -->
+    <div id="lobby-popup" class="popup" style="display:none;">
+        <div class="popup-content">
+            <div class="popup-header">
+                <span id="popup-player-name"></span>
+                <span id="popup-player-score" class="score"></span>
+            </div>
+            <div class="popup-body">
+                <h2>Danh sách bàn</h2>
+                <div id="popup-rooms-list" class="rooms-list"></div>
+                <button id="btn-show-create-room" class="btn btn-primary" style="margin-top:16px;">Tạo phòng mới</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Room Popup -->
+    <div id="create-room-popup" class="popup" style="display:none;">
+        <div class="popup-content">
+            <div class="popup-header">
+                <h2>Tạo phòng mới</h2>
+            </div>
+            <div class="popup-body">
+                <div class="form-group">
+                    <label>Tên phòng:</label>
+                    <input type="text" id="popup-room-name" placeholder="Phòng của tôi">
+                </div>
+                <div class="form-group">
+                    <label>Loại phòng:</label>
+                    <select id="popup-room-type">
+                        <option value="public">Công khai</option>
+                        <option value="private">Riêng tư</option>
+                    </select>
+                </div>
+                <div class="form-group" id="popup-password-group" style="display: none;">
+                    <label>Mật khẩu:</label>
+                    <input type="password" id="popup-room-password" placeholder="Nhập mật khẩu">
+                </div>
+                <div class="form-group">
+                    <label>Số người chơi:</label>
+                    <select id="popup-max-players">
+                        <option value="2">2 người</option>
+                        <option value="3">3 người</option>
+                        <option value="4" selected>4 người</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Cược (điểm):</label>
+                    <input type="number" id="popup-bet-amount" value="0" min="0" step="100">
+                </div>
+                <button id="btn-popup-create-room" class="btn btn-primary">Tạo phòng</button>
+                <button id="btn-cancel-create-room" class="btn btn-secondary" style="margin-left:8px;">Hủy</button>
             </div>
         </div>
     </div>
@@ -103,21 +159,14 @@
                     </div>
                 </div>
 
-                <!-- Chat -->
-                <div class="panel">
-                    <h3>Chat</h3>
-                    <div id="chat-messages" class="chat-messages"></div>
-                    <div class="chat-input-group">
-                        <input type="text" id="chat-input" placeholder="Nhập tin nhắn...">
-                        <button id="btn-send-chat" class="btn btn-small">Gửi</button>
-                    </div>
-                </div>
+                <!-- ...existing code... -->
             </div>
         </div>
     </div>
 
     <!-- Game Screen -->
     <div id="game-screen" class="screen">
+        <div id="game-toast" class="game-toast" style="display:none;"></div>
         <div class="game-container">
             <!-- Game Info -->
             <div class="game-info">
@@ -158,11 +207,7 @@
                 <button id="btn-declare-one" class="btn btn-warning" style="display: none;">Báo 1</button>
             </div>
 
-            <!-- History -->
-            <div class="game-history">
-                <h4>Lịch sử đánh bài</h4>
-                <div id="history-list" class="history-list"></div>
-            </div>
+            <!-- ...existing code... -->
 
             <!-- Player's Hand -->
             <div class="player-hand">
@@ -170,14 +215,7 @@
                 <div id="player-cards" class="cards-hand"></div>
             </div>
 
-            <!-- Chat in Game -->
-            <div class="game-chat">
-                <div id="game-chat-messages" class="chat-messages"></div>
-                <div class="chat-input-group">
-                    <input type="text" id="game-chat-input" placeholder="Chat...">
-                    <button id="btn-game-send-chat" class="btn btn-small">📤</button>
-                </div>
-            </div>
+            <!-- ...existing code... -->
         </div>
     </div>
 

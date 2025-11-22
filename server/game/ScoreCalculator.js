@@ -4,6 +4,69 @@ const { SCORE_MULTIPLIERS } = require('../utils/constants');
  * ScoreCalculator for calculating scores and penalties
  */
 class ScoreCalculator {
+    // TÍCH HỢP HỆ THỐNG TIỀN TỆ
+    static calculateEndGameCoins(players, winnerId, bet) {
+      const MoneySystem = require('./MoneySystem');
+      const coinChanges = {};
+      const losers = Object.values(players).filter(p => p.id !== winnerId);
+      coinChanges[winnerId] = MoneySystem.calculateWinReward(bet, losers.length);
+      losers.forEach(loser => {
+        coinChanges[loser.id] = -MoneySystem.calculatePenalty(bet, loser.hand.length);
+      });
+      return MoneySystem.applyCoinUpdateToAllPlayers(Object.values(players), coinChanges);
+    }
+
+    static handleSamSuccessCoins(players, samId, bet) {
+      const MoneySystem = require('./MoneySystem');
+      const coinChanges = {};
+      Object.values(players).forEach(p => {
+        if (p.id === samId) {
+          coinChanges[p.id] = MoneySystem.handleSamSuccess(bet, Object.keys(players).length);
+        } else {
+          coinChanges[p.id] = -MoneySystem.handleSamSuccess(bet, Object.keys(players).length) / (Object.keys(players).length - 1);
+        }
+      });
+      return MoneySystem.applyCoinUpdateToAllPlayers(Object.values(players), coinChanges);
+    }
+
+    static handleSamFailCoins(players, samId, bet) {
+      const MoneySystem = require('./MoneySystem');
+      const coinChanges = {};
+      Object.values(players).forEach(p => {
+        if (p.id === samId) {
+          coinChanges[p.id] = -MoneySystem.handleSamFail(bet, Object.keys(players).length);
+        } else {
+          coinChanges[p.id] = MoneySystem.handleSamFail(bet, Object.keys(players).length) / (Object.keys(players).length - 1);
+        }
+      });
+      return MoneySystem.applyCoinUpdateToAllPlayers(Object.values(players), coinChanges);
+    }
+
+    static handleAutoWinCoins(players, winnerId, bet) {
+      const MoneySystem = require('./MoneySystem');
+      const coinChanges = {};
+      Object.values(players).forEach(p => {
+        if (p.id === winnerId) {
+          coinChanges[p.id] = MoneySystem.handleAutoWin(bet, Object.keys(players).length - 1);
+        } else {
+          coinChanges[p.id] = -bet;
+        }
+      });
+      return MoneySystem.applyCoinUpdateToAllPlayers(Object.values(players), coinChanges);
+    }
+
+    static penaltyThoi2Coins(player, bet) {
+      const MoneySystem = require('./MoneySystem');
+      return -MoneySystem.penaltyThoi2(bet);
+    }
+    static penaltyThoiTuQuyCoins(player, bet) {
+      const MoneySystem = require('./MoneySystem');
+      return -MoneySystem.penaltyThoiTuQuy(bet);
+    }
+    static penaltyCongCoins(player, bet) {
+      const MoneySystem = require('./MoneySystem');
+      return -MoneySystem.penaltyCong(bet);
+    }
   /**
    * Calculate end-game scores for all players
    * @param {Object} gameState - Current game state

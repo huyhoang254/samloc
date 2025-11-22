@@ -140,23 +140,20 @@ class RoomManager {
   /**
    * Get all public rooms
    */
-  getPublicRooms() {
-    const publicRooms = [];
-    
+  // Trả về tất cả phòng (cả công khai và riêng tư) cho danh sách phòng
+  getAllRooms() {
+    const roomsList = [];
     for (const room of this.rooms.values()) {
-      if (room.type === ROOM_TYPES.PUBLIC && room.state === 'waiting') {
-        publicRooms.push({
-          id: room.id,
-          name: room.name,
-          players: room.players.length,
-          maxPlayers: room.maxPlayers,
-          betAmount: room.betAmount,
-          host: room.players.find(p => p.id === room.host)?.name
-        });
-      }
+      roomsList.push({
+        id: room.id,
+        name: room.name,
+        type: room.type,
+        players: room.players.length,
+        maxPlayers: room.maxPlayers,
+        hasPassword: !!room.password,
+      });
     }
-
-    return publicRooms;
+    return roomsList;
   }
 
   /**

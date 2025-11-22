@@ -8,7 +8,7 @@ class SocketManager {
 
     connect() {
         this.socket = io();
-        
+
         this.socket.on('connect', () => {
             console.log('Connected to server');
             this.connected = true;
@@ -97,10 +97,7 @@ class SocketManager {
             this.emit('game-ended', data);
         });
 
-        // Chat events
-        this.socket.on('chat-message', (data) => {
-            this.emit('chat-message', data);
-        });
+
     }
 
     // Event emitter pattern
@@ -171,9 +168,7 @@ class SocketManager {
         this.send('declare-one', { roomId });
     }
 
-    sendChatMessage(roomId, message) {
-        this.send('chat-message', { roomId, message });
-    }
+
 
     getRooms() {
         this.send('get-rooms');

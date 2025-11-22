@@ -1,76 +1,87 @@
+// Hiển thị thông báo đẹp trên màn hình game
+function showGameToast(message, duration = 3000) {
+    const toast = document.getElementById('game-toast');
+    if (!toast) return;
+    toast.innerHTML = message;
+    toast.style.display = 'block';
+    toast.classList.add('show');
+    setTimeout(() => {
+        toast.classList.remove('show');
+        toast.style.display = 'none';
+    }, duration);
+}
 // Game UI Manager
 class GameUI {
-    constructor() {
-        this.currentRoom = null;
-        this.myHand = [];
-        this.selectedCards = [];
-        this.gameState = null;
-        this.myPlayerId = null;
-        this.turnTimer = null;
-        this.turnTimeLeft = 0;
-        this.turnDuration = 30; // 30 seconds
-    }
+        // Khởi tạo game UI khi bắt đầu ván mới
+        init(roomId, playerId) {
+            this.currentRoom = roomId;
+            this.myPlayerId = playerId;
+            this.selectedCards = [];
+            document.getElementById('game-room-id').textContent = roomId;
+            this.setupEventListeners();
+        }
 
-    // Initialize game screen
-    init(roomId, playerId) {
-        this.currentRoom = roomId;
-        this.myPlayerId = playerId;
-        this.selectedCards = [];
-        
-        document.getElementById('game-room-id').textContent = roomId;
-        
-        // Setup event listeners
-        this.setupEventListeners();
-    }
-
-    setupEventListeners() {
-        // Play cards button
-        document.getElementById('btn-play-cards').addEventListener('click', () => {
-            if (this.selectedCards.length > 0) {
-                this.playSelectedCards();
-            }
-        });
-
-        // Pass button
-        document.getElementById('btn-pass').addEventListener('click', () => {
-            socketManager.passTurn(this.currentRoom);
-        });
-
-        // Declare Sam button
-        document.getElementById('btn-declare-sam').addEventListener('click', () => {
-            socketManager.declareSam(this.currentRoom);
-            document.getElementById('btn-declare-sam').style.display = 'none';
-        });
-
-        // Declare One button
-        document.getElementById('btn-declare-one').addEventListener('click', () => {
-            socketManager.declareOne(this.currentRoom);
-            document.getElementById('btn-declare-one').style.display = 'none';
-        });
-
-        // Game chat
-        document.getElementById('btn-game-send-chat').addEventListener('click', () => {
-            this.sendGameChat();
-        });
-
-        document.getElementById('game-chat-input').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                this.sendGameChat();
-            }
-        });
+        setupEventListeners() {
+            // Play cards button
+            document.getElementById('btn-play-cards').addEventListener('click', () => {
+                if (this.selectedCards.length > 0) {
+                    this.playSelectedCards();
+                }
+            });
+            // Pass button
+            document.getElementById('btn-pass').addEventListener('click', () => {
+                socketManager.passTurn(this.currentRoom);
+            });
+            // Declare Sam button
+            document.getElementById('btn-declare-sam').addEventListener('click', () => {
+                socketManager.declareSam(this.currentRoom);
+                document.getElementById('btn-declare-sam').style.display = 'none';
+            });
+            // Declare One button
+            document.getElementById('btn-declare-one').addEventListener('click', () => {
+                socketManager.declareOne(this.currentRoom);
+                document.getElementById('btn-declare-one').style.display = 'none';
+            });
+        }
+    showGameEnd(result) {
+        // Thông báo đẹp khi kết thúc ván
+        let msg = '';
+        if (result.autoWin) {
+            msg = `🎉 Ăn trắng! ${result.condition?.description || ''}`;
+        } else if (result.samDeclarer && result.winner === result.samDeclarer) {
+            msg = `⭐ Báo Sâm thành công! ${result.winnerName} nhận thưởng lớn!`;
+        } else if (result.samDeclarer && result.winner !== result.samDeclarer) {
+            msg = `❌ Báo Sâm thất bại! ${result.winnerName} thắng, ${this.gameState.players[result.samDeclarer].name} bị phạt nặng.`;
+        } else if (result.winner === this.myPlayerId) {
+            msg = '🎉 Bạn thắng!';
+        } else {
+            msg = '😔 Bạn thua!';
+        }
+        showGameToast(msg, 4000);
+        // Vẫn hiển thị modal chi tiết nếu muốn
+        const modal = document.getElementById('game-end-modal');
+        modal.classList.add('active');
     }
 
     // Display player's hand
     displayHand(hand) {
         this.myHand = hand;
         this.selectedCards = [];
-        
+
         const container = document.getElementById('player-cards');
         container.innerHTML = '';
 
+        // Animated card dealing
         hand.forEach((card, index) => {
             const cardElement = this.createCardElement(card, index);
+            cardElement.style.opacity = '0';
+            cardElement.style.transform = 'translateY(-30px) scale(0.8)';
             container.appendChild(cardElement);
+            setTimeout(() => {
+                cardElement.style.opacity = '1';
+                cardElement.style.transform = 'translateY(0) scale(1)';
+                cardElement.style.transition = 'opacity 0.4s, transform 0.4s';
+            }, 80 * index);
         });
 
         document.getElementById('hand-count').textContent = hand.length;
@@ -85,7 +96,7 @@ class GameUI {
     createCardElement(card, index) {
         const div = document.createElement('div');
         div.className = 'card-item';
-        
+
         // Add color class
         if (card.suit === 'hearts' || card.suit === 'diamonds') {
             div.classList.add('red');
@@ -121,7 +132,7 @@ class GameUI {
     // Toggle card selection
     toggleCardSelection(index, element) {
         const cardIndex = this.selectedCards.indexOf(index);
-        
+
         if (cardIndex > -1) {
             // Deselect
             this.selectedCards.splice(cardIndex, 1);
@@ -150,14 +161,14 @@ class GameUI {
         // Update current turn info
         const currentPlayer = state.players[state.currentPlayer];
         const isMyTurn = state.currentPlayer === this.myPlayerId;
-        
-        document.getElementById('current-turn-info').textContent = 
+
+        document.getElementById('current-turn-info').textContent =
             isMyTurn ? '🎯 Lượt của bạn!' : `Lượt: ${currentPlayer.name}`;
 
         // Update Sam declarer info
         if (state.samDeclarer) {
             const declarer = state.players[state.samDeclarer];
-            document.getElementById('sam-declarer-info').textContent = 
+            document.getElementById('sam-declarer-info').textContent =
                 `⭐ ${declarer.name} đã báo Sâm`;
         }
 
@@ -167,8 +178,6 @@ class GameUI {
         // Update buttons
         this.updateButtons(isMyTurn, state);
 
-        // Update history
-        this.updateHistory(state.turnHistory);
 
         // Start turn timer
         this.startTurnTimer(state.currentPlayer, isMyTurn);
@@ -177,23 +186,24 @@ class GameUI {
     // Update other players display
     updateOtherPlayers(state) {
         const otherPlayers = state.playerOrder.filter(id => id !== this.myPlayerId);
-        
+
         otherPlayers.forEach((playerId, index) => {
             const player = state.players[playerId];
             const slot = document.getElementById(`player-slot-${index + 1}`);
-            
+
             if (slot) {
                 const initials = player.name.substring(0, 2).toUpperCase();
                 const isCurrentTurn = playerId === state.currentPlayer;
-                
+
                 slot.innerHTML = `
                     <div class="player-avatar" data-player-id="${playerId}">
                         ${initials}
-                        ${isCurrentTurn ? '<div class="timer-circle" id="timer-circle-' + (index + 1) + '"></div>' : ''}
+                        ${isCurrentTurn ? '<div class="timer-clock" id="timer-clock-' + (index + 1) + '"></div>' : ''}
                     </div>
                     <div class="player-info-box">
                         <div class="player-slot-name">${player.name}</div>
                         <div class="player-slot-cards">🎴 ${player.cardCount} lá</div>
+                        <div class="player-slot-coins">💰 ${player.coins ?? 0} Cá</div>
                         ${player.declaredOne ? '<div style="color: #ff6b6b; font-size: 12px;">⚠️ Báo 1!</div>' : ''}
                     </div>
                 `;
@@ -216,10 +226,10 @@ class GameUI {
 
         if (isMyTurn) {
             playBtn.disabled = this.selectedCards.length === 0;
-            
+
             // Can only pass if there's a combo on table
             passBtn.disabled = !state.currentCombo;
-            
+
             // Highlight player's hand when it's their turn
             if (playerHand) {
                 playerHand.classList.add('my-turn');
@@ -227,7 +237,7 @@ class GameUI {
         } else {
             playBtn.disabled = true;
             passBtn.disabled = true;
-            
+
             // Remove highlight
             if (playerHand) {
                 playerHand.classList.remove('my-turn');
@@ -247,7 +257,7 @@ class GameUI {
                 container.appendChild(cardElement);
             });
 
-            document.getElementById('last-played-info').textContent = 
+            document.getElementById('last-played-info').textContent =
                 `${data.playerName} đánh ${this.getComboName(data.combo)}`;
         } else {
             container.innerHTML = '<p class="text-muted">Chưa có bài nào</p>';
@@ -269,29 +279,7 @@ class GameUI {
         return typeNames[combo.type] || combo.type;
     }
 
-    // Update history
-    updateHistory(history) {
-        if (!history) return;
 
-        const container = document.getElementById('history-list');
-        container.innerHTML = '';
-
-        // Show last 5 moves
-        const recentHistory = history.slice(-5).reverse();
-        
-        recentHistory.forEach(item => {
-            const div = document.createElement('div');
-            div.className = 'history-item';
-            
-            if (item.action === 'pass') {
-                div.textContent = `${item.playerName} bỏ lượt`;
-            } else if (item.combo) {
-                div.textContent = `${item.playerName} đánh ${this.getComboName(item.combo)}`;
-            }
-            
-            container.appendChild(div);
-        });
-    }
 
     // Show game end modal
     showGameEnd(result) {
@@ -319,66 +307,34 @@ class GameUI {
 
         // Show scores
         scoresTable.innerHTML = '';
-        
+
         for (const playerId in result.scores) {
             const playerScore = result.scores[playerId];
             const isWinner = playerId === result.winner;
-            
+
             const row = document.createElement('div');
             row.className = `score-row ${isWinner ? 'winner' : 'loser'}`;
-            
+
             row.innerHTML = `
                 <div class="score-info">
                     <strong>${this.gameState.players[playerId].name}</strong>
                     <div>Số lá còn: ${playerScore.cardsLeft}</div>
-                    ${playerScore.penalties.length > 0 ? 
-                        `<div class="text-muted">${playerScore.penalties.map(p => p.description).join(', ')}</div>` 
-                        : ''}
+                    ${playerScore.penalties.length > 0 ?
+                    `<div class="text-muted">${playerScore.penalties.map(p => p.description).join(', ')}</div>`
+                    : ''}
                 </div>
                 <div class="score-value ${playerScore.score >= 0 ? 'positive' : 'negative'}">
                     ${playerScore.score >= 0 ? '+' : ''}${playerScore.score}
                 </div>
             `;
-            
+
             scoresTable.appendChild(row);
         }
 
         modal.classList.add('active');
     }
 
-    // Add chat message to game chat
-    addGameChatMessage(data) {
-        const container = document.getElementById('game-chat-messages');
-        
-        const div = document.createElement('div');
-        div.className = 'chat-message';
-        
-        div.innerHTML = `
-            <div class="chat-message-header">${data.playerName}</div>
-            <div class="chat-message-text">${this.escapeHtml(data.message)}</div>
-        `;
-        
-        container.appendChild(div);
-        container.scrollTop = container.scrollHeight;
-    }
 
-    // Send game chat
-    sendGameChat() {
-        const input = document.getElementById('game-chat-input');
-        const message = input.value.trim();
-        
-        if (message) {
-            socketManager.sendChatMessage(this.currentRoom, message);
-            input.value = '';
-        }
-    }
-
-    // Escape HTML
-    escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
 
     // Start turn timer
     startTurnTimer(currentPlayerId, isMyTurn) {
@@ -392,13 +348,13 @@ class GameUI {
         this.turnTimeLeft = this.turnDuration;
 
         // Find which slot has the current player
-        let timerCircleId = null;
-        
+        let timerClockId = null;
+
         if (!isMyTurn) {
             const otherPlayers = this.gameState.playerOrder.filter(id => id !== this.myPlayerId);
             const currentIndex = otherPlayers.indexOf(currentPlayerId);
             if (currentIndex >= 0) {
-                timerCircleId = `timer-circle-${currentIndex + 1}`;
+                timerClockId = `timer-clock-${currentIndex + 1}`;
             }
         }
 
@@ -407,7 +363,7 @@ class GameUI {
             this.turnTimeLeft--;
 
             // Update timer display
-            this.updateTimerDisplay(timerCircleId, isMyTurn);
+            this.updateTimerDisplay(timerClockId, isMyTurn);
 
             // Auto pass when time runs out
             if (this.turnTimeLeft <= 0) {
@@ -422,36 +378,23 @@ class GameUI {
         }, 1000);
 
         // Initial display
-        this.updateTimerDisplay(timerCircleId, isMyTurn);
+        this.updateTimerDisplay(timerClockId, isMyTurn);
     }
 
     // Update timer display
     updateTimerDisplay(timerCircleId, isMyTurn) {
-        const percentage = (this.turnTimeLeft / this.turnDuration) * 100;
-        const circumference = 2 * Math.PI * 55; // radius = 55
-        const offset = circumference - (percentage / 100) * circumference;
-
-        // Determine color state
-        let colorClass = '';
-        if (this.turnTimeLeft <= 5) {
-            colorClass = 'danger';
-        } else if (this.turnTimeLeft <= 10) {
-            colorClass = 'warning';
-        }
-
         // Update other player's timer
-        if (timerCircleId) {
-            const timerElement = document.getElementById(timerCircleId);
+        if (timerCircleId) return; // legacy guard
+        if (timerClockId) {
+            const timerElement = document.getElementById(timerClockId);
             if (timerElement) {
-                timerElement.className = `timer-circle ${colorClass}`;
-                timerElement.innerHTML = `
-                    <svg>
-                        <circle cx="58" cy="58" r="55" 
-                            style="stroke-dasharray: ${circumference}; stroke-dashoffset: ${offset};">
-                        </circle>
-                    </svg>
-                    <div class="timer-text">${this.turnTimeLeft}s</div>
-                `;
+                let color = '#222';
+                if (this.turnTimeLeft <= 5) color = '#ef4444';
+                else if (this.turnTimeLeft <= 10) color = '#f59e42';
+                timerElement.style.color = color;
+                timerElement.style.fontWeight = 'bold';
+                timerElement.style.fontSize = '18px';
+                timerElement.innerHTML = `<span>${this.turnTimeLeft}s</span>`;
             }
         }
 
@@ -463,7 +406,7 @@ class GameUI {
                 turnInfo.style.color = '#ef4444';
             } else {
                 turnInfo.textContent = `🎯 Lượt của bạn! (${this.turnTimeLeft}s)`;
-                turnInfo.style.color = 'white';
+                turnInfo.style.color = '';
             }
         }
     }
@@ -482,16 +425,14 @@ class GameUI {
         this.myHand = [];
         this.selectedCards = [];
         this.gameState = null;
-        
+
         if (this.turnTimer) {
             clearInterval(this.turnTimer);
             this.turnTimer = null;
         }
-        
+
         document.getElementById('player-cards').innerHTML = '';
         document.getElementById('last-played-cards').innerHTML = '';
-        document.getElementById('history-list').innerHTML = '';
-        document.getElementById('game-chat-messages').innerHTML = '';
     }
 }
 
